@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,22 +34,40 @@ class Settings(BaseSettings):
 
     chunk_size: int = Field(
         default=2000,
-        gt=0,
+        gt=0,           # Must be greater than 0
     )
 
     chunk_overlap: int = Field(
         default=200,
-        ge=0,
+        ge=0,           # Must be greater than or equal to 0
     )
 
     retrieval_k: int = Field(
         default=8,
-        gt=0,
+        gt=0,           # Must be greater than 0
     )
 
     # cors_origins: str = "http://localhost:3000"
-    cors_origins: str
+    cors_origins: str = Field(
+        ...,
+        min_length=1,
+    )
 
+    max_repo_size_mb: int = Field(
+        default=500,
+        gt=0,           # Must be greater than 0
+    )
+
+    max_python_files: int = Field(
+        default=2000,
+        gt=0,           # Must be greater than 0
+    )
+
+    max_chunks: int = Field(
+        default=20000,
+        gt=0,           # Must be greater than 0
+    )
+    
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
@@ -57,6 +75,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def validate_chunk_settings(self):
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError(
+                "chunk_overlap must be less than chunk_size."
+            )
+
+        return self
+    
     @property
     def repo_dir(self) -> Path:
         return BASE_DIR / self.repo_path

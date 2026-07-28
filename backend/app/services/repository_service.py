@@ -6,6 +6,17 @@ import stat
 import os
 
 
+def get_directory_size(directory: Path) -> int:
+    """
+    Returns the total size of a directory in bytes.
+    """
+    return sum(
+        file.stat().st_size
+        for file in directory.rglob("*")
+        if file.is_file()
+    )
+    
+
 def handle_remove_readonly(func, path, exc_info):
     os.chmod(path, stat.S_IWRITE)
     func(path)
@@ -50,9 +61,15 @@ def validate_github_url(url: str) -> str:
 
 
 class RepositoryService:
-    def __init__(self, repo_dir: Path, chroma_dir: Path):
+    def __init__(
+        self,
+        repo_dir: Path,
+        chroma_dir: Path,
+        max_repo_size_mb: int,
+    ):
         self.repo_dir = repo_dir
         self.chroma_dir = chroma_dir
+        self.max_repo_size_mb = max_repo_size_mb
 
     def clear(self):
         if self.repo_dir.exists():
@@ -68,8 +85,21 @@ class RepositoryService:
         self.clear()
 
         try:
-            Repo.clone_from(clone_url, self.repo_dir)
+            size_bytes = get_directory_size(self.repo_dir)
+            size_mb = size_bytes / (1024 * 1024)
+
+            if size_mb > self.max_repo_size_mb:
+                self.clear()
+
+                raise ValueError(
+                    f"Repository size ({size_mb:.2f} MB) exceeds "
+                    f"the maximum allowed size of "
+                    f"{self.max_repo_size_mb} MB."
+                )
+
         except Exception as exc:
-            raise ValueError(f"Failed to clone {clone_url}: {exc}") from exc
+            raise ValueError(
+                f"Failed to clone {clone_url}: {exc}"
+            ) from exc
 
         return self.repo_dir

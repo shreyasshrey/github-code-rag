@@ -22,6 +22,7 @@ router = APIRouter(
 repository_service = RepositoryService(
     settings.repo_dir,
     settings.chroma_dir,
+    settings.max_repo_size_mb,
 )
 
 
@@ -44,6 +45,32 @@ def health():
         "status": "ok",
     }
 
+
+@router.get("/health/ready", status_code=status.HTTP_200_OK)
+def readiness():
+
+    if not settings.repo_dir.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Repository directory not found.",
+        )
+
+    if not settings.chroma_dir.exists():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ChromaDB directory not found.",
+        )
+
+    if not settings.huggingfacehub_api_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hugging Face API key is missing.",
+        )
+
+    return {
+        "status": "ready",
+    }
+    
 
 @router.post(
     "/repository/ingest",
