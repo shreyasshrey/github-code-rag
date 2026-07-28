@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.api.dependencies import verify_api_key
 
 from app.schemas import ApiResponse, ChatRequest, RepositoryIngestRequest
 from app.config import settings
@@ -47,6 +49,7 @@ def health():
     "/repository/ingest",
     # response_model=RepositoryIngestResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(verify_api_key)],
 )
 def ingest_repository(
     request: RepositoryIngestRequest,
@@ -106,6 +109,7 @@ def ingest_repository(
 @router.post(
     "/chat",
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(verify_api_key)],
 )
 def chat(
     request: ChatRequest,
@@ -164,6 +168,7 @@ def chat(
     "/repository",
     response_model=ApiResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(verify_api_key)],
 )
 def clear_repository():
     try:

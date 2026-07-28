@@ -23,6 +23,11 @@ class Settings(BaseSettings):
         min_length=1,
     )
 
+    api_key: str = Field(
+        ...,
+        min_length=32,
+    )
+
     repo_path: str = "./repo"
 
     chroma_path: str = "./db"
