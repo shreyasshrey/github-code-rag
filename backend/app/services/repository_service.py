@@ -85,12 +85,16 @@ class RepositoryService:
         self.clear()
 
         try:
+            Repo.clone_from(
+                clone_url,
+                self.repo_dir,
+            )
+
             size_bytes = get_directory_size(self.repo_dir)
             size_mb = size_bytes / (1024 * 1024)
 
             if size_mb > self.max_repo_size_mb:
                 self.clear()
-
                 raise ValueError(
                     f"Repository size ({size_mb:.2f} MB) exceeds "
                     f"the maximum allowed size of "
