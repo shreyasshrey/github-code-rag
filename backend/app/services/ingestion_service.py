@@ -1,9 +1,9 @@
 from pathlib import Path
 from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders.parsers import LanguageParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+
 
 class IngestionService:
     def __init__(self, settings):
@@ -11,8 +11,7 @@ class IngestionService:
 
     def load_python_files(self, repo_dir: Path):
         documents = []
-        parser = LanguageParser(language="python", parser_threshold=500)
-        
+
         for file_path in repo_dir.rglob("*.py"):
             # Skip any files in .git directories
             if ".git" in file_path.parts:
@@ -25,10 +24,16 @@ class IngestionService:
                     for doc in docs:
                         doc.metadata["source"] = str(file_path.relative_to(repo_dir))
                     documents.extend(docs)
-            except Exception as e:
+            except Exception:
                 # Skip files we can't read
                 continue
-                
+
+        if len(documents) > self.settings.max_python_files:
+            raise ValueError(
+                f"Repository has {len(documents)} Python files, which exceeds "
+                f"the maximum allowed of {self.settings.max_python_files}."
+            )
+
         return documents
 
     def split_documents(self, documents):
@@ -37,7 +42,16 @@ class IngestionService:
             chunk_size=self.settings.chunk_size,
             chunk_overlap=self.settings.chunk_overlap,
         )
-        return splitter.split_documents(documents)
+        chunks = splitter.split_documents(documents)
+
+        if len(chunks) > self.settings.max_chunks:
+            raise ValueError(
+                f"Repository produced {len(chunks)} chunks, which exceeds "
+                f"the maximum allowed of {self.settings.max_chunks}. Try a "
+                "smaller repository, or increase CHUNK_SIZE to produce fewer chunks."
+            )
+
+        return chunks
 
     def create_embeddings(self):
         return HuggingFaceEmbeddings(
@@ -56,6 +70,6 @@ class IngestionService:
             embedding=self.create_embeddings(),
             persist_directory=str(self.settings.chroma_dir),
             collection_name="github_code",
-             collection_metadata={"hnsw:space": "cosine"},
+            collection_metadata={"hnsw:space": "cosine"},
         )
         return {"files": len(documents), "chunks": len(chunks), "vectorstore": vectorstore}

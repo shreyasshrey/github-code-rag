@@ -5,6 +5,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from app.logging_config import configure_logging
+
+# Must run before any other module in the app creates a logger and starts
+# calling .info()/.warning()/etc. on it — otherwise those calls hit the
+# default unconfigured root logger (WARNING level, no handlers) and are
+# silently dropped. This was previously never imported anywhere, so none
+# of the app's logging was actually being written to file or console.
+configure_logging()
+
 from app.api.routes import router
 from app.config import settings
 
